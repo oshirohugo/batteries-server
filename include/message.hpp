@@ -11,18 +11,21 @@ enum class msg_type
   PLAYER_UPDATE,
   PLAYER_LEAVE,
   BATTERY_CONSUMPTION,
+  GAME_SET,
 };
 
 class message
 {
 public:
-  int type;
+  msg_type type;
   Json::Value payload;
-  message();
-  message(int type_, Json::Value payload_);
+  message(std::string msg);
+  message(msg_type type_, Json::Value payload_);
   message(const message &other);
 
   Json::Value to_json();
+
+  std::string to_string();
 };
 
 #endif

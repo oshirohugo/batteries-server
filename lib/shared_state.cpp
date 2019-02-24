@@ -9,31 +9,34 @@
 
 #include <time.h>
 #include <jsoncpp/json/json.h>
+
 #include "shared_state.hpp"
 #include "websocket_session.hpp"
+#include "message.hpp"
+
+player shared_state::get_new_player()
+{
+    int n_of_players = this->connected_players.size();
+
+    player new_player = player(300 + 60 * n_of_players, 300 + 60 * n_of_players,
+                               "#9C27B0", LIVE, this->connected_players.size());
+    return new_player;
+}
 
 void shared_state::
     join(websocket_session *session)
 {
+    std::cout << "Connection received\n";
+
     std::lock_guard<std::mutex> lock(mutex_);
     sessions_.insert(session);
 
-    int n_of_players = this->connected_players.size();
+    player new_player = this->get_new_player();
 
-    player new_player = player(300 + 60 * n_of_players, 300 + 60 * n_of_players, "#9C27B0", LIVE,
-                               this->connected_players.size());
-
-    Json::Value msg;
-    msg["type"] = 0;
-    msg["payload"] = new_player.to_json();
-
-    Json::FastWriter fastWriter;
-    std::string msg_data = fastWriter.write(msg);
+    message msg = message(msg_type::PLAYER_INIT, this->get_new_player().to_json());
 
     auto const msg_0 = boost::make_shared<std::string const>(
-        std::move(msg_data));
-
-    std::cout << "Connection received\n";
+        std::move(msg.to_string()));
 
     session->send(msg_0);
 
@@ -77,39 +80,33 @@ void shared_state::
 void shared_state::
     broadcast_state()
 {
-    Json::Value msg;
-    Json::FastWriter fastWriter;
+    message game_state_msg = message(msg_type::GAME_SET, this->get_game_objs_msg());
 
-    msg["type"] = 1;
-    msg["payload"] = this->get_game_objs_msg();
-
-    this->send(fastWriter.write(msg));
+    this->send(game_state_msg.to_string());
 }
 
 void shared_state::
-    send_last_player()
+    broadcast_player(int player_id, bool is_join)
 {
+
+    msg_type type = is_join ? msg_type::PLAYER_JOIN : msg_type::PLAYER_UPDATE;
+
+    message player_msg = message(type, this->connected_players[player_id].to_json());
+
+    this->send(player_msg.to_string());
 }
 
 void shared_state::
-    process(std::string message)
+    process(std::string msg_string)
 {
-    Json::Reader reader;
-    Json::Value message_json;
+    message msg = message(msg_string.c_str());
 
-    bool success = reader.parse(message.c_str(), message_json);
-
-    if (!success)
-        std::cerr << "Parse failed";
-
-    int type = message_json["type"].asInt();
-
-    switch (type)
+    switch (msg.type)
     {
-    case 0:
+    case msg_type::PLAYER_UPDATE:
     {
-        int player_id = (message_json["payload"]["id"]).asInt();
-        Json::Value player_data = message_json["payload"];
+        int player_id = (msg.payload["id"]).asInt();
+        Json::Value player_data = msg.payload;
         this->connected_players[player_id].update(player_data);
         this->broadcast_state();
         break;
@@ -119,7 +116,7 @@ void shared_state::
         break;
     }
 
-    std::cout << message_json["payload"] << "\n";
+    std::cout << msg.payload << "\n";
 }
 
 Json::Value shared_state::get_game_objs_msg()
