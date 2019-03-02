@@ -32,16 +32,10 @@ void shared_state::
     sessions_.insert(session);
 
     player new_player = this->get_new_player();
-
-    message msg = message(msg_type::PLAYER_INIT, this->get_new_player().to_json());
-
-    auto const msg_0 = boost::make_shared<std::string const>(
-        std::move(msg.to_string()));
-
-    session->send(msg_0);
-
     this->connected_players.push_back(new_player);
     this->generate_batteries();
+
+    this->send_game_set_msg(new_player.id, session);
 }
 
 void shared_state::
@@ -78,11 +72,31 @@ void shared_state::
 }
 
 void shared_state::
+    send_game_set_msg(int player_id, websocket_session *session)
+{
+    Json::Value root = this->get_game_objs_msg();
+    root["player"] = this->connected_players[player_id].to_json();
+
+    message msg = message(msg_type::GAME_SET, root);
+
+    auto const msg_0 = boost::make_shared<std::string const>(
+        std::move(msg.to_string()));
+
+    session->send(msg_0);
+}
+
+void shared_state::
     broadcast_state()
 {
-    message game_state_msg = message(msg_type::GAME_SET, this->get_game_objs_msg());
+    message game_state_msg = message(msg_type::GAME_UPDATE, this->get_game_objs_msg());
 
     this->send(game_state_msg.to_string());
+}
+
+void shared_state::
+    broadcast_last_player()
+{
+    this->broadcast_player(this->connected_players.size() - 1, true);
 }
 
 void shared_state::
@@ -108,7 +122,7 @@ void shared_state::
         int player_id = (msg.payload["id"]).asInt();
         Json::Value player_data = msg.payload;
         this->connected_players[player_id].update(player_data);
-        this->broadcast_state();
+        this->broadcast_player(player_id, false);
         break;
     }
 
@@ -143,8 +157,8 @@ Json::Value shared_state::get_game_objs_msg()
 void shared_state::generate_batteries()
 {
     int N_OF_BATTERIES = 10;
-    double X_RANGE = 800;
-    double Y_RANGE = 800;
+    double X_RANGE = 1E3;
+    double Y_RANGE = 1E3;
 
     srand(time(NULL));
 
@@ -161,11 +175,11 @@ void shared_state::generate_batteries()
         double batteries_pos[2];
         do
         {
-            batteries_pos[0] = rand() % static_cast<int>(x_limits[1]) + x_limits[0];
-            batteries_pos[1] = rand() % static_cast<int>(y_limits[1]) + y_limits[0];
+            batteries_pos[0] = rand() % static_cast<int>((x_limits[1] + 1 - x_limits[0])) + x_limits[0];
+            batteries_pos[1] = rand() % static_cast<int>((y_limits[1] + 1 - y_limits[0])) + y_limits[0];
 
-            x_diff = batteries_pos[0] - last_player_pos[0];
-            y_diff = batteries_pos[1] - last_player_pos[1];
+            x_diff = abs(batteries_pos[0] - last_player_pos[0]);
+            y_diff = abs(batteries_pos[1] - last_player_pos[1]);
         } while (x_diff < 20 || y_diff < 20);
 
         int id = this->batteries.size();

@@ -43,7 +43,9 @@ class shared_state
     void send(std::string message);
     void broadcast_state();
     void broadcast_player(int id, bool is_join);
+    void broadcast_last_player();
     player get_new_player();
+    void send_game_set_msg(int player_id, websocket_session *session);
     void process(std::string message);
 };
 

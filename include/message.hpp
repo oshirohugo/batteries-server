@@ -12,6 +12,7 @@ enum class msg_type
   PLAYER_LEAVE,
   BATTERY_CONSUMPTION,
   GAME_SET,
+  GAME_UPDATE,
 };
 
 class message
