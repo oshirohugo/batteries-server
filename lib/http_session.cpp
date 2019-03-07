@@ -231,7 +231,7 @@ on_read(beast::error_code ec, std::size_t)
         #if 0
             // NOTE This causes an ICE in gcc 7.3
             // Write the response
-            http::async_write(this->socket_, *sp,
+            http::async_write(socket_, *sp,
                 net::bind_executor(strand_,
                     [self = shared_from_this(), sp](
                         beast::error_code ec, std::size_t bytes)
@@ -241,7 +241,7 @@ on_read(beast::error_code ec, std::size_t)
         #else
             // Write the response
             auto self = shared_from_this();
-            http::async_write(this->socket_, *sp,
+            http::async_write(socket_, *sp,
                 net::bind_executor(strand_,
                     [self, sp](
                         beast::error_code ec, std::size_t bytes)

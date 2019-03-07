@@ -15,6 +15,7 @@
 #include <mutex>
 #include <string>
 #include <unordered_set>
+#include "websocket_session.hpp"
 #include "player.hpp"
 #include "battery.hpp"
 
@@ -24,29 +25,29 @@ class websocket_session;
 // Represents the shared server state
 class shared_state
 {
-    // This mutex synchronizes all access to sessions_
-    std::mutex mutex_;
+  // This mutex synchronizes all access to sessions_
+  std::mutex mutex_;
 
-    // Keep a list of all the connected clients
-    std::unordered_set<websocket_session *> sessions_;
+  // Keep a list of all the connected clients
+  std::unordered_set<websocket_session *> sessions_;
 
-    std::vector<player> connected_players;
-    std::vector<battery> batteries;
+  std::map<int, battery> batteries;
+  std::map<websocket_session *, player> connected_players;
 
-    Json::Value get_game_objs_msg();
+  Json::Value get_game_objs_msg();
 
-    void generate_batteries();
+  void generate_batteries(websocket_session *session);
+  int get_time_miliseconds();
 
-  public:
-    void join(websocket_session *session);
-    void leave(websocket_session *session);
-    void send(std::string message);
-    void broadcast_state();
-    void broadcast_player(int id, bool is_join);
-    void broadcast_last_player();
-    player get_new_player();
-    void send_game_set_msg(int player_id, websocket_session *session);
-    void process(std::string message);
+public:
+  void join(websocket_session *session);
+  void leave(websocket_session *session);
+  void send(std::string message);
+  void broadcast_state();
+  void broadcast_player(websocket_session *session, bool is_join);
+  player get_new_player();
+  void send_game_set_msg(websocket_session *session);
+  void process(websocket_session *session, std::string message);
 };
 
 #endif

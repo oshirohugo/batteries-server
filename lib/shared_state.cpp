@@ -11,16 +11,16 @@
 #include <jsoncpp/json/json.h>
 
 #include "shared_state.hpp"
-#include "websocket_session.hpp"
 #include "message.hpp"
 
 player shared_state::get_new_player()
 {
-    int n_of_players = this->connected_players.size();
+    int n_of_players = connected_players.size();
+    int id = get_time_miliseconds();
+    std::string color = "#9C27B0";
+    int position[] = {300 + 60 * n_of_players, 300 + 60 * n_of_players};
 
-    player new_player = player(300 + 60 * n_of_players, 300 + 60 * n_of_players,
-                               "#9C27B0", LIVE, this->connected_players.size());
-    return new_player;
+    return player(position[0], position[1], color, LIVE, id);
 }
 
 void shared_state::
@@ -31,11 +31,10 @@ void shared_state::
     std::lock_guard<std::mutex> lock(mutex_);
     sessions_.insert(session);
 
-    player new_player = this->get_new_player();
-    this->connected_players.push_back(new_player);
-    this->generate_batteries();
+    connected_players[session] = get_new_player();
 
-    this->send_game_set_msg(new_player.id, session);
+    generate_batteries(session);
+    send_game_set_msg(session);
 }
 
 void shared_state::
@@ -44,6 +43,7 @@ void shared_state::
     std::cout << "Disconnect\n";
     std::lock_guard<std::mutex> lock(mutex_);
     sessions_.erase(session);
+    connected_players.erase(session);
 }
 
 // Broadcast a message to all websocket client sessions
@@ -72,10 +72,10 @@ void shared_state::
 }
 
 void shared_state::
-    send_game_set_msg(int player_id, websocket_session *session)
+    send_game_set_msg(websocket_session *session)
 {
-    Json::Value root = this->get_game_objs_msg();
-    root["player"] = this->connected_players[player_id].to_json();
+    Json::Value root = get_game_objs_msg();
+    root["player"] = connected_players[session].to_json();
 
     message msg = message(msg_type::GAME_SET, root);
 
@@ -88,30 +88,24 @@ void shared_state::
 void shared_state::
     broadcast_state()
 {
-    message game_state_msg = message(msg_type::GAME_UPDATE, this->get_game_objs_msg());
+    message game_state_msg = message(msg_type::GAME_UPDATE, get_game_objs_msg());
 
-    this->send(game_state_msg.to_string());
+    send(game_state_msg.to_string());
 }
 
 void shared_state::
-    broadcast_last_player()
-{
-    this->broadcast_player(this->connected_players.size() - 1, true);
-}
-
-void shared_state::
-    broadcast_player(int player_id, bool is_join)
+    broadcast_player(websocket_session *session, bool is_join)
 {
 
     msg_type type = is_join ? msg_type::PLAYER_JOIN : msg_type::PLAYER_UPDATE;
 
-    message player_msg = message(type, this->connected_players[player_id].to_json());
+    message player_msg = message(type, connected_players[session].to_json());
 
-    this->send(player_msg.to_string());
+    send(player_msg.to_string());
 }
 
 void shared_state::
-    process(std::string msg_string)
+    process(websocket_session *session, std::string msg_string)
 {
     message msg = message(msg_string.c_str());
 
@@ -119,10 +113,9 @@ void shared_state::
     {
     case msg_type::PLAYER_UPDATE:
     {
-        int player_id = (msg.payload["id"]).asInt();
         Json::Value player_data = msg.payload;
-        this->connected_players[player_id].update(player_data);
-        this->broadcast_player(player_id, false);
+        connected_players[session].update(player_data);
+        broadcast_player(session, false);
         break;
     }
 
@@ -136,15 +129,17 @@ void shared_state::
 Json::Value shared_state::get_game_objs_msg()
 {
     Json::Value players_json;
-    for (size_t i = 0; i < this->connected_players.size(); i++)
+    int player_index = 0;
+    for (auto &player_entry : connected_players)
     {
-        players_json[static_cast<int>(i)] = this->connected_players[i].to_json();
+        players_json[static_cast<int>(player_index++)] = player_entry.second.to_json();
     }
 
     Json::Value batteries_json;
-    for (size_t i = 0; i < this->batteries.size(); i++)
+    int battery_index = 0;
+    for (auto &battery_entry : batteries)
     {
-        batteries_json[static_cast<int>(i)] = this->batteries[i].to_json();
+        batteries_json[static_cast<int>(battery_index++)] = battery_entry.second.to_json();
     }
 
     Json::Value root;
@@ -154,7 +149,7 @@ Json::Value shared_state::get_game_objs_msg()
     return root;
 }
 
-void shared_state::generate_batteries()
+void shared_state::generate_batteries(websocket_session *session)
 {
     int N_OF_BATTERIES = 10;
     double X_RANGE = 1E3;
@@ -163,8 +158,8 @@ void shared_state::generate_batteries()
     srand(time(NULL));
 
     double last_player_pos[] = {
-        this->connected_players[this->connected_players.size() - 1].x,
-        this->connected_players[this->connected_players.size() - 1].y};
+        connected_players[session].x,
+        connected_players[session].y};
 
     double x_limits[] = {last_player_pos[0] - X_RANGE, last_player_pos[0] + X_RANGE};
     double y_limits[] = {last_player_pos[1] - Y_RANGE, last_player_pos[1] + Y_RANGE};
@@ -182,8 +177,15 @@ void shared_state::generate_batteries()
             y_diff = abs(batteries_pos[1] - last_player_pos[1]);
         } while (x_diff < 20 || y_diff < 20);
 
-        int id = this->batteries.size();
+        int id = get_time_miliseconds() + i;
 
-        this->batteries.push_back(battery(batteries_pos[0], batteries_pos[1], id));
+        batteries[id] = battery(batteries_pos[0], batteries_pos[1], id);
     }
+}
+
+int shared_state::get_time_miliseconds()
+{
+    return std::chrono::duration_cast<std::chrono::milliseconds>(
+               std::chrono::system_clock::now().time_since_epoch())
+        .count();
 }

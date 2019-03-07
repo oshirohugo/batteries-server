@@ -67,7 +67,7 @@ void websocket_session::
         return fail(ec, "read");
 
     // Send to all connections
-    state_->process(beast::buffers_to_string(buffer_.data()));
+    state_->process(this, beast::buffers_to_string(buffer_.data()));
 
     // Clear the buffer
     buffer_.consume(buffer_.size());

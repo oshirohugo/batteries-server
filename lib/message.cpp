@@ -12,8 +12,8 @@ message::message(std::string msg)
   if (!success)
     std::cerr << "Parse failed";
 
-  this->type = static_cast<msg_type>(message_json["type"].asInt());
-  this->payload = message_json["payload"];
+  type = static_cast<msg_type>(message_json["type"].asInt());
+  payload = message_json["payload"];
 }
 
 message::message(msg_type type_, Json::Value payload_) : type(type_), payload(payload_) {}
@@ -24,8 +24,8 @@ Json::Value message::to_json()
 {
   Json::Value root;
 
-  root["type"] = static_cast<int>(this->type);
-  root["payload"] = this->payload;
+  root["type"] = static_cast<int>(type);
+  root["payload"] = payload;
 
   return root;
 }
@@ -33,5 +33,5 @@ Json::Value message::to_json()
 std::string message::to_string()
 {
   Json::FastWriter fastWriter;
-  return (fastWriter.write(this->to_json()));
+  return (fastWriter.write(to_json()));
 }

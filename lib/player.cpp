@@ -26,21 +26,22 @@ player::player(const player& other) : game_object(other.x, other.y, other.id),
 }
 
 void player::update(Json::Value player_data) {
-  this->dx = player_data["dx"].asDouble();
-  this->dy = player_data["dy"].asDouble();
-  this->x = player_data["x"].asDouble();
-  this->y = player_data["y"].asDouble();
-  this->status = static_cast<Status>(player_data["status"].asInt());
+  dx = player_data["dx"].asDouble();
+  dy = player_data["dy"].asDouble();
+  x = player_data["x"].asDouble();
+  y = player_data["y"].asDouble();
+  status = static_cast<Status>(player_data["status"].asInt());
 }
 
 Json::Value player::to_json() {
   Json::Value root;
-  root["x"] = this->x;
-  root["y"] = this->y;
-  root["id"] = this->id;
-  root["color"] = this->color;
-  root["dx"] = this->dx;
-  root["dy"] = this->dy;
+  root["x"] = x;
+  root["y"] = y;
+  root["id"] = id;
+  root["color"] = color;
+  root["dx"] = dx;
+  root["dy"] = dy;
+  root["status"] = status;
 
   return root;
 }
