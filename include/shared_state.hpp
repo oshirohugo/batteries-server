@@ -45,6 +45,7 @@ public:
   void send(std::string message);
   void broadcast_state();
   void broadcast_player(websocket_session *session, bool is_join);
+  void broadcast_charge(websocket_session *session, int battery_id);
   player get_new_player();
   void send_game_set_msg(websocket_session *session);
   void process(websocket_session *session, std::string message);

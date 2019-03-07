@@ -105,6 +105,18 @@ void shared_state::
 }
 
 void shared_state::
+    broadcast_charge(websocket_session *session, int battery_id)
+{
+    Json::Value json_message;
+    json_message["player"] = connected_players[session].to_json();
+    json_message["battery"]["id"] = battery_id;
+
+    message charge_msg = message(msg_type::CHARGE, json_message);
+
+    send(charge_msg.to_string());
+}
+
+void shared_state::
     process(websocket_session *session, std::string msg_string)
 {
     message msg = message(msg_string.c_str());
@@ -116,6 +128,17 @@ void shared_state::
         Json::Value player_data = msg.payload;
         connected_players[session].update(player_data);
         broadcast_player(session, false);
+        break;
+    }
+
+    case msg_type::CHARGE:
+    {
+        Json::Value player_data = msg.payload["player"];
+        connected_players[session].update(player_data);
+
+        int battery_id = msg.payload["battery"]["id"].asInt();
+
+        broadcast_charge(session, battery_id);
         break;
     }
 
