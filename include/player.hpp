@@ -15,11 +15,17 @@ enum Status
 
 class player : public game_object
 {
+private:
+  static const int MAX_TIME = 5000;
 public:
   Status status;
   std::string color;
   double dx;
   double dy;
+  double remaining_time;
+  double updated_at;
+  std::string username;
+  int points;
 
   player();
   player(double x, double y, std::string color, Status status, int id);

@@ -41,9 +41,11 @@ void shared_state::
     leave(websocket_session *session)
 {
     std::cout << "Disconnect\n";
+    broadcast_player(session, true);
+    connected_players.erase(session);
+    
     std::lock_guard<std::mutex> lock(mutex_);
     sessions_.erase(session);
-    connected_players.erase(session);
 }
 
 // Broadcast a message to all websocket client sessions
@@ -94,10 +96,10 @@ void shared_state::
 }
 
 void shared_state::
-    broadcast_player(websocket_session *session, bool is_join)
+    broadcast_player(websocket_session *session, bool is_remove)
 {
 
-    msg_type type = is_join ? msg_type::PLAYER_JOIN : msg_type::PLAYER_UPDATE;
+    msg_type type = is_remove ? msg_type::PLAYER_REMOVE : msg_type::PLAYER_UPDATE;
 
     message player_msg = message(type, connected_players[session].to_json());
 
