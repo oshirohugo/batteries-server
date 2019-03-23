@@ -11,7 +11,6 @@
 #include <jsoncpp/json/json.h>
 
 #include "shared_state.hpp"
-#include "message.hpp"
 
 player shared_state::get_new_player()
 {
@@ -31,17 +30,14 @@ void shared_state::
     std::lock_guard<std::mutex> lock(mutex_);
     sessions_.insert(session);
 
-    connected_players[session] = get_new_player();
-
-    generate_batteries(session);
-    send_game_set_msg(session);
+    send_player_init(session);
 }
 
 void shared_state::
     leave(websocket_session *session)
 {
     std::cout << "Disconnect\n";
-    broadcast_player(session, true);
+    broadcast_player(session, msg_type::PLAYER_REMOVE);
     connected_players.erase(session);
     
     std::lock_guard<std::mutex> lock(mutex_);
@@ -88,6 +84,20 @@ void shared_state::
 }
 
 void shared_state::
+    send_player_init(websocket_session *session)
+{
+    Json::Value root;
+    root["player"] = get_new_player().to_json();
+
+    message msg = message(msg_type::PLAYER_INIT, root);
+
+    auto const msg_0 = boost::make_shared<std::string const>(
+        std::move(msg.to_string()));
+
+    session->send(msg_0);
+}
+
+void shared_state::
     broadcast_state()
 {
     message game_state_msg = message(msg_type::GAME_UPDATE, get_game_objs_msg());
@@ -96,13 +106,9 @@ void shared_state::
 }
 
 void shared_state::
-    broadcast_player(websocket_session *session, bool is_remove)
+    broadcast_player(websocket_session *session, msg_type type)
 {
-
-    msg_type type = is_remove ? msg_type::PLAYER_REMOVE : msg_type::PLAYER_UPDATE;
-
     message player_msg = message(type, connected_players[session].to_json());
-
     send(player_msg.to_string());
 }
 
@@ -125,11 +131,21 @@ void shared_state::
 
     switch (msg.type)
     {
+    case msg_type::PLAYER_JOIN:
+    {
+        Json::Value player_data = msg.payload;
+        connected_players[session] = player(player_data);
+        generate_batteries(session);
+        send_game_set_msg(session);
+        broadcast_state();
+        break;
+    }
+
     case msg_type::PLAYER_UPDATE:
     {
         Json::Value player_data = msg.payload;
         connected_players[session].update(player_data);
-        broadcast_player(session, false);
+        broadcast_player(session, msg.type);
         break;
     }
 

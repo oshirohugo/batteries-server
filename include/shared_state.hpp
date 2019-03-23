@@ -18,6 +18,7 @@
 #include "websocket_session.hpp"
 #include "player.hpp"
 #include "battery.hpp"
+#include "message.hpp"
 
 // Forward declaration
 class websocket_session;
@@ -44,10 +45,11 @@ public:
   void leave(websocket_session *session);
   void send(std::string message);
   void broadcast_state();
-  void broadcast_player(websocket_session *session, bool is_join);
+  void broadcast_player(websocket_session *session,  msg_type type);
   void broadcast_charge(websocket_session *session, int battery_id);
   player get_new_player();
   void send_game_set_msg(websocket_session *session);
+  void send_player_init(websocket_session *session);
   void process(websocket_session *session, std::string message);
 };
 

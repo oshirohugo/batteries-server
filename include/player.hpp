@@ -29,6 +29,7 @@ public:
 
   player();
   player(double x, double y, std::string color, Status status, int id);
+  player(Json::Value player_data);
   player(const player& other);
 
   void update(Json::Value player_data);

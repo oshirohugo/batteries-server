@@ -25,6 +25,11 @@ player::player() : game_object(0, 0, 0),
 {
 }
 
+player::player(Json::Value player_data) : game_object(player_data["x"].asDouble(), player_data["y"].asDouble(), player_data["id"].asInt())
+{
+  update(player_data);
+}
+
 player::player(const player &other) : game_object(other.x, other.y, other.id),
                                       status(other.status),
                                       color(other.color),
@@ -48,6 +53,7 @@ void player::update(Json::Value player_data)
   updated_at = player_data["updateAt"].asDouble();
   points = player_data["points"].asInt();
   username = player_data["username"].asString();
+  color = player_data["color"].asString();
 }
 
 Json::Value player::to_json()
