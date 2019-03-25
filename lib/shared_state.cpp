@@ -12,12 +12,16 @@
 
 #include "shared_state.hpp"
 
+const int shared_state::MAP_SIZE[] = {2048 * 5, 1050 * 5};
+
 player shared_state::get_new_player()
 {
+    const int MIDDLE[] = {MAP_SIZE[0] / 2, MAP_SIZE[1] / 2};
+
     int n_of_players = connected_players.size();
     int id = get_time_miliseconds();
     std::string color = "#9C27B0";
-    int position[] = {300 + 60 * n_of_players, 300 + 60 * n_of_players};
+    int position[] = {MIDDLE[0] + 60 * n_of_players, MIDDLE[1] + 60 * n_of_players};
 
     return player(position[0], position[1], color, LIVE, id);
 }
@@ -39,7 +43,7 @@ void shared_state::
     std::cout << "Disconnect\n";
     broadcast_player(session, msg_type::PLAYER_REMOVE);
     connected_players.erase(session);
-    
+
     std::lock_guard<std::mutex> lock(mutex_);
     sessions_.erase(session);
 }
@@ -73,7 +77,11 @@ void shared_state::
     send_game_set_msg(websocket_session *session)
 {
     Json::Value root = get_game_objs_msg();
-    root["player"] = connected_players[session].to_json();
+
+    Json::Value map;
+    map["width"] = MAP_SIZE[0];
+    map["height"] = MAP_SIZE[1];
+    root["map"] = map;
 
     message msg = message(msg_type::GAME_SET, root);
 
@@ -202,8 +210,12 @@ void shared_state::generate_batteries(websocket_session *session)
         connected_players[session].x,
         connected_players[session].y};
 
-    double x_limits[] = {last_player_pos[0] - X_RANGE, last_player_pos[0] + X_RANGE};
-    double y_limits[] = {last_player_pos[1] - Y_RANGE, last_player_pos[1] + Y_RANGE};
+    double x_limits[] = {
+        std::max(last_player_pos[0] - X_RANGE, 0.0),
+        std::min(last_player_pos[0] + X_RANGE, static_cast<double>(MAP_SIZE[0]))};
+    double y_limits[] = {
+        std::max(last_player_pos[1] - Y_RANGE, 0.0),
+        std::min(last_player_pos[1] + Y_RANGE, static_cast<double>(MAP_SIZE[1]))};
 
     for (int i = 0; i < N_OF_BATTERIES; i++)
     {

@@ -40,12 +40,14 @@ class shared_state
   void generate_batteries(websocket_session *session);
   int get_time_miliseconds();
 
+  static const int MAP_SIZE[2];
+
 public:
   void join(websocket_session *session);
   void leave(websocket_session *session);
   void send(std::string message);
   void broadcast_state();
-  void broadcast_player(websocket_session *session,  msg_type type);
+  void broadcast_player(websocket_session *session, msg_type type);
   void broadcast_charge(websocket_session *session, int battery_id);
   player get_new_player();
   void send_game_set_msg(websocket_session *session);
